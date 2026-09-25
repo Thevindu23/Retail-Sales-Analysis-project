@@ -1,0 +1,5 @@
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+data/source.zip
+outputs/cleaned_sales.csv
