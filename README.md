@@ -2,6 +2,8 @@
 
 A beginner Python portfolio project exploring an online retailer's sales with Pandas and Matplotlib.
 The notebook explains each step, from inspecting data quality to interpreting five charts.
+Each method now includes the problem it solves, the reason for choosing it and its limitations.
+See the method-choice summary in [LEARNING_GUIDE.md](LEARNING_GUIDE.md), then read the explanations beside the notebook code.
 
 ## Start here
 

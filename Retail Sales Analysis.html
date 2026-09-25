@@ -7545,6 +7545,17 @@ This is historical practice data, not a description of today's retail market.</p
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="1.-Import-the-tools-and-load-the-data">1. Import the tools and load the data<a class="anchor-link" href="#1.-Import-the-tools-and-load-the-data">¶</a></h2><p><code>pandas</code> works with tables. <code>matplotlib</code> draws charts. Run cells from top to bottom.
 The Excel file is included in the <code>data</code> folder. Loading it can take a minute.</p>
+<p><strong>Problem this solves:</strong> Hundreds of thousands of invoice lines are too many to inspect or total manually. We need a repeatable way to read and summarize the same file.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong>Pandas and <code>read_excel()</code></strong> load the supplied spreadsheet directly and provide simple table operations. There is no need for a database for this one-file exercise.</li>
+<li><strong>Jupyter Notebook</strong> keeps code, results and explanations together, making each step easier to learn and review.</li>
+<li><strong>Matplotlib</strong> creates the static charts needed for these questions and saves them as images for the report.</li>
+<li><strong>String types for invoice, product and customer IDs</strong> treat these values as labels rather than measurements. This preserves letter prefixes such as <code>C</code> and avoids treating an identifier as a quantity.</li>
+<li><strong><code>head()</code> and <code>shape</code></strong> provide a quick preview and row/column counts, helping confirm that the intended file and fields were loaded.</li>
+<li><strong>Relative paths and <code>mkdir(exist_ok=True)</code></strong> let the project run from its folder on another computer and create output folders without failing when they already exist.</li>
+</ul>
+<p><strong>Limit:</strong> A five-row preview cannot establish that the whole dataset is clean; the next step checks every row.</p>
 </div>
 </div>
 </div>
@@ -7693,6 +7704,16 @@ The Excel file is included in the <code>data</code> folder. Loading it can take 
 <code>duplicated().sum()</code> identifies repeated rows. A repeated row could be a real repeated invoice line,
 so we retain these rows because there is no unique line ID to prove they are errors.
 Missing customer IDs do not prevent a line from contributing to sales.</p>
+<p><strong>Problem this solves:</strong> Missing values, repeated records, unexpected quantities and incomplete date coverage can silently change the meaning of the results.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong><code>isna().sum()</code></strong> counts missing values for every column, showing which calculations need special handling. We keep missing customer IDs because sales value needs quantity and price, not customer identity. Dropping every row with any missing value would discard otherwise usable sales lines.</li>
+<li><strong><code>duplicated().sum()</code></strong> measures exact repeated rows before making a cleaning decision. We retain them because identical lines are not sufficient proof of accidental duplication. This avoids deleting potentially real purchases, but totals could be inflated if those rows are errors.</li>
+<li><strong><code>pd.to_datetime()</code></strong> gives dates a consistent date/time type so date filters and month/weekday extraction work reliably. It also fails on unparseable values instead of silently accepting them as valid dates.</li>
+<li><strong>Minimum and maximum dates</strong> reveal the available time window and whether a final month is incomplete.</li>
+<li><strong><code>describe()</code></strong> summarizes the count, spread and extremes of quantity and price. Negative values and very large maxima help identify records that need investigation without reading every line.</li>
+</ul>
+<p><strong>Limit:</strong> These are screening methods. A negative quantity may be a legitimate return, and a large order may be a wholesale purchase; neither automatically proves bad data.</p>
 </div>
 </div>
 </div>
@@ -7876,6 +7897,19 @@ We do not subtract returns, so this is <strong>not net revenue or profit</strong
 Other adjustments and charges may still be present in invoice totals.</p>
 <p>Use January 1 through November 30, 2011. Keep unknown customers; this project does not analyze customer retention.
 The cleaning table reports each filter in sequence so counts do not overlap.</p>
+<p><strong>Problem this solves:</strong> Mixing partial months, purchases, cancellations and non-positive lines would make a simple sales chart difficult to interpret consistently.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong>January–November 2011</strong> is a continuous set of complete months within one calendar year. December 2011 is incomplete; December 2010 is complete but outside the chosen 2011 scope. This reduces coverage differences, although months still have different lengths.</li>
+<li><strong>An inclusive start and exclusive end</strong> (<code>&gt;= '2011-01-01'</code> and <code>&lt; '2011-12-01'</code>) include every time on November 30. A midnight cutoff on November 30 could accidentally omit most of that day.</li>
+<li><strong>Boolean filters</strong> express the inclusion rules directly. Normalizing invoice IDs with <code>str.upper()</code> makes the cancellation-prefix check independent of letter case.</li>
+<li><strong>Positive quantity and price, excluding <code>C</code> invoices</strong>, define a manageable beginner analysis of positive sales lines. The filters do not reconcile purchases against their later reversals: an original purchase can remain even when its cancellation is excluded.</li>
+<li><strong><code>.copy()</code></strong> creates a separate working table, so adding calculated columns does not modify the original loaded table.</li>
+<li><strong><code>Quantity * UnitPrice</code></strong> puts differently priced products on one monetary scale. For example, 3 units at GBP 4 each contribute GBP 12.</li>
+<li><strong>Year-month labels</strong> keep months in different years separate. Weekday labels support the later weekday comparison.</li>
+<li><strong>Sequential remaining-row counts</strong> show how much data each rule removes, without double-counting records that fail multiple rules.</li>
+</ul>
+<p><strong>Limit:</strong> These filters intentionally exclude some legitimate business activity. The result is included positive-line sales value, not a full accounting total. A net-revenue analysis would need a different treatment of returns and adjustments.</p>
 </div>
 </div>
 </div>
@@ -7985,6 +8019,16 @@ Included exact repeated source rows: 4,459
 <h2 id="4.-Calculate-the-main-numbers">4. Calculate the main numbers<a class="anchor-link" href="#4.-Calculate-the-main-numbers">¶</a></h2><p><code>sum()</code> adds values. <code>nunique()</code> counts distinct invoices.
 Average order value is total included sales divided by the number of invoices with included lines.
 It is not the average value of a single row.</p>
+<p><strong>Problem this solves:</strong> Counting rows confuses individual product lines with customer orders, while averaging line values gives the wrong answer for average order value.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong><code>sum()</code></strong> adds every included line value to measure the size of sales activity.</li>
+<li><strong><code>InvoiceNo.nunique()</code></strong> counts each invoice once. An invoice containing five product lines is one order, not five orders.</li>
+<li><strong>Total sales divided by distinct invoices</strong> calculates mean order value. It gives each order equal weight rather than each product line.</li>
+<li><strong>Grouping by invoice before taking the median</strong> first reconstructs order values. The median describes the middle order and is less affected by a few unusually large purchases.</li>
+</ul>
+<p>For example, two orders worth GBP 20 and GBP 80 have an average value of GBP 50, regardless of how many product lines each order contains.</p>
+<p><strong>Limit:</strong> These are order values after applying our line filters, not necessarily complete invoiced amounts. Neither the mean nor median tells us what causes customers to spend more.</p>
 </div>
 </div>
 </div>
@@ -8036,6 +8080,10 @@ Median order value: GBP 305.48
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="5.-Monthly-sales">5. Monthly sales<a class="anchor-link" href="#5.-Monthly-sales">¶</a></h2><p><code>groupby()</code> collects rows with the same month; <code>sum()</code> adds their sales values.
 These are complete months. One year's pattern cannot establish that a change repeats every year.</p>
+<p><strong>Problem this solves:</strong> Individual transactions are too detailed to show the broad sales pattern over time.</p>
+<p><strong>Why these methods were chosen:</strong> <code>groupby('Month').sum()</code> reduces invoice lines to one total per month. <code>sort_index()</code> keeps the year-month labels in chronological order instead of ranking months by sales. A <strong>line chart</strong> emphasizes the sequence and changes between adjacent months; markers identify the observed monthly totals. Currency formatting makes large GBP values easier to read.</p>
+<p><strong>What it helps answer:</strong> Which months were relatively busy or quiet, and where should someone investigate promotions, stock availability or staffing?</p>
+<p><strong>Limit:</strong> Monthly totals are not normalized for the number of days or opening days. A rise does not prove that a promotion caused it, and eleven months cannot establish a recurring seasonal pattern.</p>
 </div>
 </div>
 </div>
@@ -8162,6 +8210,10 @@ These are complete months. One year's pattern cannot establish that a change rep
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="6.-Top-countries">6. Top countries<a class="anchor-link" href="#6.-Top-countries">¶</a></h2><p>Country refers to the customer's country. The chart shows the ten largest by included sales value,
 not the size of the overall market in those countries.</p>
+<p><strong>Problem this solves:</strong> We need to identify where this retailer's recorded sales are concentrated without presenting a crowded chart of every country.</p>
+<p><strong>Why these methods were chosen:</strong> Grouping by country and summing <strong>sales value</strong> measures monetary contribution; a row count would measure invoice lines instead. Sorting and selecting the <strong>top ten</strong> produces a readable ranking. A <strong>horizontal bar chart</strong> gives country names room and makes category values easy to compare on a common scale. Sorting the displayed bars in ascending order places the largest at the top.</p>
+<p><strong>What it helps answer:</strong> How dependent are the included sales on a small number of countries? The full country summary is exported so smaller countries are still available for review.</p>
+<p><strong>Limit:</strong> The chart does not show profitability, market share or the potential of a new market. Customer country is also not proof of delivery destination.</p>
 </div>
 </div>
 </div>
@@ -8209,6 +8261,17 @@ not the size of the overall market in those countries.</p>
 For this product chart only, use codes containing five digits and optional letter suffixes.
 This simple documented rule excludes special codes such as postage or manual charges; it is not a verified product catalogue.
 Invoice totals elsewhere keep all otherwise eligible lines.</p>
+<p><strong>Problem this solves:</strong> A product can appear under different descriptions, and invoice lines can also contain items such as postage. We need a reasonably consistent way to rank product volume.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong>Grouping by <code>StockCode</code></strong> combines lines for the same identifier even when descriptions differ. Grouping by description could split one product into several entries.</li>
+<li><strong><code>str.fullmatch()</code></strong> applies a transparent five-digit-code rule with optional letter suffixes. It helps exclude special service codes before ranking products. This is a simple heuristic, not a confirmed catalogue classification.</li>
+<li><strong>Summing quantity</strong> answers which products have the most units on included lines. Counting rows would ignore the number of units per line; summing sales value would answer a different question about money.</li>
+<li><strong><code>first()</code> and <code>join()</code></strong> attach the first available description to each product code for readable labels. The code remains visible because the chosen description is only a display label.</li>
+<li><strong>A horizontal top-ten bar chart</strong> supports long product names and makes the highest volumes easy to compare.</li>
+<li><strong><code>fillna('Unknown')</code></strong> supplies a display label where a description is missing; it does not invent product information.</li>
+</ul>
+<p><strong>Limit:</strong> Some real products may fail the code rule, and some non-product codes may pass it. The rule only affects this product chart. Quantities are not net of returns, so investigate unusual orders before interpreting the ranking as demand.</p>
 </div>
 </div>
 </div>
@@ -8260,6 +8323,10 @@ Invoice totals elsewhere keep all otherwise eligible lines.</p>
 with the same product, customer, price and opposite quantity in the original period data.
 This is an investigation clue, not a complete returns-matching system. We keep the stated positive-line
 definition throughout, so this ranking must not be interpreted as net product demand.</p>
+<p><strong>Problem this solves:</strong> A single extreme line can make a product appear to be a strong seller even if that order was later reversed.</p>
+<p><strong>Why these methods were chosen:</strong> Sorting quantities and displaying the largest three lines is an easy-to-follow first check for a beginner. The largest line is then compared with the original period table, which still contains negative quantities. Matching <strong>product, customer, price and opposite quantity</strong> provides stronger evidence of a possible reversal than matching the product alone.</p>
+<p><strong>What the result means here:</strong> The saved output identifies a 74,215-unit line and one possible reversal record. That is a reason to investigate the leading product before recommending more stock. It is not a reason to silently remove the record from an analysis with already-declared inclusion rules.</p>
+<p><strong>Limit:</strong> This check investigates only the largest quantity line. It does not match every return, check the order of the transaction dates, or establish a unique purchase-to-return link. Missing IDs, partial returns and repeated purchases also require more careful handling in a full reconciliation.</p>
 </div>
 </div>
 </div>
@@ -8433,6 +8500,10 @@ definition throughout, so this ranking must not be interpreted as net product de
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="8.-Orders-by-weekday">8. Orders by weekday<a class="anchor-link" href="#8.-Orders-by-weekday">¶</a></h2><p>Count distinct invoice numbers instead of rows. This reports total recorded orders for each weekday,
 not orders per opening day. A zero does not prove that customer demand is zero.</p>
+<p><strong>Problem this solves:</strong> Counting product rows could make a weekday with large multi-item orders look busier than a weekday with more actual orders.</p>
+<p><strong>Why these methods were chosen:</strong> <code>groupby('Weekday')['InvoiceNo'].nunique()</code> measures distinct recorded orders for each weekday. <strong><code>reindex()</code> with Monday-to-Sunday labels</strong> uses familiar calendar order instead of alphabetical order. Filling absent groups with zero shows that no eligible orders were recorded for that weekday. A <strong>bar chart</strong> compares these discrete categories without suggesting a continuous time series.</p>
+<p><strong>What it helps answer:</strong> Which weekdays account for the most orders in this period, as a starting point for reviewing workload?</p>
+<p><strong>Limit:</strong> These are totals, not average orders per open day. Different numbers of occurrences, opening schedules and holidays can affect the comparison. A zero may reflect closure or data coverage rather than a lack of demand.</p>
 </div>
 </div>
 </div>
@@ -8480,6 +8551,10 @@ not orders per opening day. A zero does not prove that customer demand is zero.<
 For readability, plot only orders at or below the 95th percentile. The title reports the number shown.
 Large orders remain in all metrics, including the mean and median printed earlier.
 The median is the middle order value and is less affected by very large orders.</p>
+<p><strong>Problem this solves:</strong> A single average hides the distribution of order values, and a few very large orders can stretch the chart until most orders are hard to see.</p>
+<p><strong>Why these methods were chosen:</strong> A <strong>histogram</strong> groups numeric order values into ranges and counts the orders in each range. This reveals concentration and spread that a mean alone cannot show. <strong>Thirty bins</strong> are a practical readability choice for this chart, not a statistically optimized setting; changing the bin count changes its appearance.</p>
+<p>The <strong>95th-percentile cutoff</strong> limits only the displayed data so the central bulk of orders is easier to inspect. Values equal to the cutoff are retained, so the exact fraction displayed can differ slightly from 95%. The title and printed count disclose what is omitted. The earlier mean, median and total still use all eligible orders.</p>
+<p><strong>Limit:</strong> This chart cannot describe the omitted upper tail. For a complete view of extremes, inspect all order values separately, use a suitable transformed scale, or add a second chart. The cutoff is not a cleaning rule or proof that large orders are invalid.</p>
 </div>
 </div>
 </div>
@@ -8533,6 +8608,10 @@ The median is the middle order value and is less affected by very large orders.<
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="10.-Findings-and-possible-actions">10. Findings and possible actions<a class="anchor-link" href="#10.-Findings-and-possible-actions">¶</a></h2><p>The text below uses the calculated results, so rerunning the notebook updates the numbers.
 Actions are suggestions to investigate, not evidence of achieved improvements.</p>
+<p><strong>Problem this solves:</strong> Charts alone leave readers to guess what matters, while manually copied findings can become inconsistent when the data or filters change.</p>
+<p><strong>Why these methods were chosen:</strong> Python <strong>f-strings</strong> insert computed figures directly into the written findings. <strong><code>idxmax()</code></strong> identifies the label associated with a maximum, and dividing a country's value by total sales expresses its contribution as a percentage. Formatting rounds numbers for display while calculations retain their original precision.</p>
+<p>Each action is framed as a follow-up investigation, such as checking stock and returns before changing purchasing. This connects the result to a business decision while making the missing evidence explicit.</p>
+<p><strong>Limit:</strong> These descriptive summaries identify patterns, not causes. They do not demonstrate that a proposed action will improve revenue or profit. Maximum-label methods select one result if values tie; a fuller analysis should inspect ties when they matter.</p>
 </div>
 </div>
 </div>
@@ -8631,6 +8710,17 @@ Sales value excludes the effect of returns and is not profit or net revenue. Exa
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="11.-Check-and-export">11. Check and export<a class="anchor-link" href="#11.-Check-and-export">¶</a></h2><p>These checks confirm that summaries agree and the selected rows obey our rules.
 The cleaned CSV can be opened in Excel; the original Excel file remains unchanged.</p>
+<p><strong>Problem this solves:</strong> A chart can look plausible even if records were accidentally dropped, counted twice or filtered inconsistently. Readers also need files they can inspect outside the notebook.</p>
+<p><strong>Why these methods were chosen:</strong></p>
+<ul>
+<li><strong>Assertions on eligible rows</strong> confirm that the working table actually follows the positive-value, non-cancellation and non-missing-invoice rules.</li>
+<li><strong>The eleven-month check</strong> verifies that every month in the chosen window appears. It does not prove every transaction within those months is present.</li>
+<li><strong>Comparing monthly, country and invoice sums with the overall total</strong> checks that these summaries account for the same sales value. A tolerance smaller than GBP 0.01 avoids failures from tiny floating-point arithmetic differences while requiring totals to agree within a penny.</li>
+<li><strong>Comparing weekday order counts with the overall invoice count</strong> helps catch an invoice being counted across multiple weekdays or omitted from the weekday summary.</li>
+<li><strong>CSV tables</strong> make the calculated results available for Excel or later analysis. The generated cleaned CSV is excluded from Git because the notebook recreates it; the original data and small summary tables are included.</li>
+<li><strong>Saved PNG charts and the HTML report</strong> let someone review the results without running Python. The original Excel file remains available so the cleaning decisions can be revisited.</li>
+</ul>
+<p><strong>Limit:</strong> Internal agreement does not establish external accuracy. These checks cannot prove that the source file is complete, repeated rows are legitimate, or the chosen business definitions are appropriate for another use.</p>
 </div>
 </div>
 </div>
