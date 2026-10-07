@@ -65,7 +65,6 @@ License: Creative Commons Attribution 4.0 International, https://creativecommons
 The original dataset is redistributed unchanged. Derived tables filter dates and eligible sales lines and add calculated columns.
 Original coverage is December 1, 2010–December 9, 2011. Prices are GBP.
 
-## Portfolio use
 
-This is an AI-assisted learning project. Work through it, make your own improvements and describe your contribution accurately.
-Do not claim achieved revenue growth or other measured business impact from these descriptive findings.
+
+
